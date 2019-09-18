@@ -102,7 +102,7 @@ class Static_Session:
     model_params = self.optimize_agent_params(trial)
     model = PPO2(MlpPolicy, 
                 self.train_env, 
-                verbose=1, 
+                verbose=0, 
                 tensorboard_log="./logs/", 
                 **model_params)
 
@@ -175,7 +175,7 @@ class Static_Session:
                 tensorboard_log="./logs/", 
                 **model_params)
     try:
-      model.learn(total_timesteps=5000000)
+      model.learn(total_timesteps=10000000)
       result = self.run_test(model)
       print("EPISODE_MEAN: {}".format(result))
       model.save(self.session_name)
@@ -183,42 +183,41 @@ class Static_Session:
       print("Saving model...")
       model.save(self.session_name)
 
-# TODO fix
-# def run_live_session(mode, weights, batch_size, test_episodes, initial_invest):
+def run_live_session(mode, weights, batch_size, test_episodes, initial_invest):
 
-#   # Initialize session variables
-#   portfolio_value, test_ep_rewards, losses = [], [], 0
+  # Initialize session variables
+  portfolio_value, test_ep_rewards, losses = [], [], 0
   
-#   #Setup initial directories and return a current timestamp
-#   timestamp = dir_setup(mode)
+  #Setup initial directories and return a current timestamp
+  timestamp = dir_setup(mode)
 
-#   # Download data and create an environment and corrispective statesize actionsize
-#   env, state_size, action_size = live_env_setup(initial_invest, 63, 3)
+  # Download data and create an environment and corrispective statesize actionsize
+  env, state_size, action_size = live_env_setup(initial_invest, 63, 3)
 
-#   # TODO implement a choice for DDQN / DQN
-#   # Setup the DDQN agent
-#   agent = DDQNAgent(state_size, action_size, mode)
+  # TODO implement a choice for DDQN / DQN
+  # Setup the DDQN agent
+  agent = DDQNAgent(state_size, action_size, mode)
 
-#   # Create story for session
-#   f = open("stories/{}-{}-{}.csv".format(timestamp, mode, "BTC"),"w+")
-#   f.write("OPERATION,AMOUNT,CRYPTO_OWNED,CASH_IN_HAND,PORTFOLIO_VALUE,OPEN_PRICE\n")
+  # Create story for session
+  f = open("stories/{}-{}-{}.csv".format(timestamp, mode, "BTC"),"w+")
+  f.write("OPERATION,AMOUNT,CRYPTO_OWNED,CASH_IN_HAND,PORTFOLIO_VALUE,OPEN_PRICE\n")
 
-#   timestamp, agent = test_setup(mode, weights, agent, timestamp)
+  timestamp, agent = test_setup(mode, weights, agent, timestamp)
 
-#   state = env._reset()
+  state = env._reset()
 
-#   for time in range(env.n_step):
-#     # Act a consequence of next state
-#     action = agent.act(state)
+  for time in range(env.n_step):
+    # Act a consequence of next state
+    action = agent.act(state)
 
-#     # Make a step and print the consequence. 
-#     next_state, reward, info = env._step(action)
+    # Make a step and print the consequence. 
+    next_state, reward, info = env._step(action)
   
-#     f.write("{},{},{},{},{},{}\n".format(\
-#       ACTIONS[action], \
-#       info['crypto_owned'], \
-#       info['cash_in_hand'], \
-#       info['cur_val'], \
-#       info['price']))
+    f.write("{},{},{},{},{},{}\n".format(\
+      ACTIONS[action], \
+      info['crypto_owned'], \
+      info['cash_in_hand'], \
+      info['cur_val'], \
+      info['price']))
     
-#     state = next_state
+    state = next_state

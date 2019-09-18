@@ -81,7 +81,7 @@ class ModifiedTensorBoard(TensorBoard):
 def dir_setup(mode):
   # UTIL FUNCTION --> creates directories
   
-  maybe_make_dir('stories')
+  #maybe_make_dir('stories')
   maybe_make_dir('data')
   
   # Define a timestamp for currentl model
