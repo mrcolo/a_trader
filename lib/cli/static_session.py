@@ -103,7 +103,7 @@ class Static_Session:
                 tensorboard_log="./logs/", 
                 **model_params)
 
-    n_steps_per_eval = 10000000
+    n_steps_per_eval = 1000000
 
     for eval_idx in range(n_prune_evals_per_trial):
         try:
