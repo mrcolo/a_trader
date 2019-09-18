@@ -5,37 +5,39 @@
 # lib/envs/simulated.py: 1
 gym == 0.13.0
 
-# lib/utils/clean_correlations.py: 1
 # lib/utils/generate_images.py: 3,4
 matplotlib == 3.0.3
 
 # lib/agents/DDQNagent.py: 3
 # lib/agents/DQNagent.py: 3
-# lib/cli/sessions.py: 4
+# lib/cli/live_session.py: 4
+# lib/cli/static_session.py: 4
 # lib/envs/live.py: 6
 # lib/envs/simulated.py: 2
 # lib/utils/added_tools.py: 3
 numpy == 1.16.4
 
-# lib/cli/sessions.py: 9
+# lib/cli/live_session.py: 9
+# lib/cli/static_session.py: 9
 optuna == 0.12.0
 
-# lib/cli/sessions.py: 7
+# lib/cli/live_session.py: 7
+# lib/cli/static_session.py: 7
 # lib/envs/live.py: 9
 # lib/utils/added_tools.py: 2
-# lib/utils/clean_correlations.py: 2
 # lib/utils/generate_images.py: 2
 # lib/utils/generate_ta.py: 2
 pandas == 0.24.1
 
 # lib/envs/live.py: 11
-requests == 2.20.0
+requests == 2.13.0
 
 # lib/envs/simulated.py: 5
 # lib/utils/added_tools.py: 4
 sklearn == 0.0
 
-# lib/cli/sessions.py: 11,12,13
+# lib/cli/live_session.py: 11,12,13
+# lib/cli/static_session.py: 13,14,15
 stable_baselines == 2.6.0
 
 # lib/envs/live.py: 10
@@ -44,6 +46,10 @@ ta == 0.4.5
 
 # lib/agents/DDQNagent.py: 6,8
 # lib/agents/models/mlp.py: 2,3
-# lib/cli/sessions.py: 8
+# lib/cli/live_session.py: 8
+# lib/cli/static_session.py: 8
 # lib/utils/added_tools.py: 5,7
 tensorflow == 1.13.1
+
+# lib/cli/static_session.py: 10
+yfinance == 0.1.44

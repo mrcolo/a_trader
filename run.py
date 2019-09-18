@@ -14,7 +14,6 @@ if __name__ == '__main__':
                       help='number of episodes to run')
   parser.add_argument('-i', '--initial_invest', type=int, default=1000,
                       help='initial investment amount')
-  parser.add_argument('-w', '--weights', type=str, help='a trained model weights')
 
   # Parses arguments
   args = parser.parse_args()

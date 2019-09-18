@@ -31,7 +31,7 @@ def yahoo_ohlcv(stock):
   data = clean_ta(data)
   return data
 class Static_Session:
-  def __init__(self, mode, weights, test_episodes, initial_invest, session_name):
+  def __init__(self, mode, test_episodes, initial_invest, session_name):
     self.session_name = session_name
     self.mode = mode
     self.test_episodes = test_episodes
