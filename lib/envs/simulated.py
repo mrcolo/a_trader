@@ -1,6 +1,6 @@
 import gym
 import numpy as np
-from lib.utils.added_tools import generate_actions#, clamp
+from lib.utils.added_tools import generate_actions, clamp
 import random
 from sklearn.preprocessing import MinMaxScaler
 class SimulatedEnv(gym.Env):
@@ -71,8 +71,7 @@ class SimulatedEnv(gym.Env):
     # Check on how much it changed
     cur_val = self._get_val()
 
-    # How much did we grow from the previous step? 
-    reward = cur_val - prev_val
+    reward = clamp(-1, cur_val - prev_val, 1)
     
     done = (self.cur_step >= self.finish_step - 1) 
     info = {'cur_val': cur_val, 
