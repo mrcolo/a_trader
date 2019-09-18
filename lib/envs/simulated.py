@@ -1,8 +1,11 @@
 import gym
 import numpy as np
 from lib.utils.added_tools import generate_actions, clamp
+from lib.utils.plot import plot_stats
 import random
 from sklearn.preprocessing import MinMaxScaler
+import matplotlib.pyplot as plt
+import time
 class SimulatedEnv(gym.Env):
   
   metadata = {'render.modes': ['human', 'system', 'none']}
@@ -38,6 +41,13 @@ class SimulatedEnv(gym.Env):
                                             high=1,
                                             shape=self.obs_shape, 
                                             dtype=np.float16)  
+
+    self.fig, self.ax = plt.subplots(1,2)
+    plt.ion()
+
+    self.current_states = []
+    self.portfolio_values = []
+
     self.reset()
 
   #TODO implement seeding. 
@@ -73,6 +83,10 @@ class SimulatedEnv(gym.Env):
 
     #reward = clamp(-1, cur_val - prev_val, 1)
     reward = cur_val - prev_val
+
+    self.current_states.append(self.current_state)
+    self.portfolio_values.append(cur_val)
+
     done = (self.cur_step >= self.finish_step - 1) 
     info = {'cur_val': cur_val, 
             'prev_val': prev_val, 

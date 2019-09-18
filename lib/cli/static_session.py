@@ -8,6 +8,7 @@ import pandas as pd
 import tensorflow as tf
 import optuna
 import yfinance as yf
+
 from lib.utils.generate_ta import create_ta, clean_ta
 
 from stable_baselines.common.vec_env import DummyVecEnv, VecNormalize
@@ -42,7 +43,7 @@ class Static_Session:
     self.actions = generate_actions()
     self.timestamp = dir_setup(mode)
     self.env = None
-
+   
     data = pd.read_csv("./data/ta_all_mini_clean.csv")
 
     n_features = data.shape[1]
@@ -160,7 +161,7 @@ class Static_Session:
           if info[0]['cur_val'] < self.initial_invest:
             self.losses = self.losses + 1
           self.print_stats(e, info)
-          self.f.write("{},{},{},{},{},{}\n".format(-1,-1,-1,-1,-1,-1))
+          #self.f.write("{},{},{},{},{},{}\n".format(-1,-1,-1,-1,-1,-1))
           break
     self.losses = 0
     return np.mean(episode_reward) 

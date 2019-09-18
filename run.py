@@ -20,7 +20,9 @@ if __name__ == '__main__':
   
   if args.mode == "train" or args.mode == "validation" or args.mode == "optimization":
     s = Static_Session(args.mode, args.episodes, args.initial_invest, args.name)
-    
+
+  if args.mode == "test":
+    s = Static_Session(args.mode, args.episodes, args.initial_invest, args.name)
   if args.mode == "live":
     raise NotImplementedError
 
