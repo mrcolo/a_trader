@@ -6,7 +6,6 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.externals import joblib 
 
 from lib.utils.added_tools import generate_actions, clamp
-from lib.utils.plot import plot_stats
 
 class SimulatedEnv(gym.Env):
   

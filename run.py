@@ -24,15 +24,14 @@ if __name__ == '__main__':
   if args.mode == "optimize":
     s.run_optimization()
   
+  
   if args.mode == "train":
     s.run_train()
-
   if args.mode == "finetune" and args.stock is not None and args.brain is not None:
     s.fine_tune(args.stock)
   
   if args.mode == "validation" and args.brain is not None:
     s.run_test(args.brain)
-
   if args.mode == "test" and args.brain is not None:
     s.run_test(args.brain,False)
 
