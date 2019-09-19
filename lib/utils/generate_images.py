@@ -2,7 +2,7 @@ import pickle
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
-from added_tools import maybe_make_dir
+from lib.utils.added_tools import maybe_make_dir
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -34,7 +34,7 @@ for i in range(len(portfolio_value)):
         prev = i
         count = count + 1
 
-for i in range(93, len(episodes)):
+for i in range(0, len(episodes)):
     fig, ax = plt.subplots()
     ep_num = i
     plt.subplot(1, 2, 1)

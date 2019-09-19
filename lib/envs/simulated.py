@@ -1,11 +1,13 @@
 import gym
 import numpy as np
+import random
+import time
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.externals import joblib 
+
 from lib.utils.added_tools import generate_actions, clamp
 from lib.utils.plot import plot_stats
-import random
-from sklearn.preprocessing import MinMaxScaler
-import matplotlib.pyplot as plt
-import time
+
 class SimulatedEnv(gym.Env):
   
   metadata = {'render.modes': ['human', 'system', 'none']}
@@ -16,32 +18,32 @@ class SimulatedEnv(gym.Env):
     
     self.dataset = train_data
     self.mode = mode
-   
     self.n_steps = 500
     self.finish_step = 0
-    
-    self.scaler = MinMaxScaler()
-    self.scaler.fit(self.dataset)
-
-    #TODO is this the perfect solution for your problem?
-    self.actions = generate_actions()
-    
     self.init_invest = init_invest
     self.cur_step = None
     self.current_state = []
     self.owned_stocks = None
-    self.cash_in_hand = None
+    self.cash_in_hand = None    
+
+    self.scaler = MinMaxScaler()
+   
+    if mode is "train":
+      self.scaler.fit(self.dataset)
+      joblib.dump(self.scaler, 'train_scaler.pkl') 
     
-    # Action space
-    self.action_space = gym.spaces.Discrete(30)
-    
+    if mode is "test" or mode is "validation":
+      self.scaler = joblib.load('train_scaler.pkl') 
+
+    self.actions = generate_actions()
+    self.action_space = gym.spaces.Discrete(30)  
+
     self.n_features = train_data.shape[1]
     self.obs_shape = (1, self.n_features)
     self.observation_space = gym.spaces.Box(low=0, 
                                             high=1,
                                             shape=self.obs_shape, 
                                             dtype=np.float16)  
-
     self.reset()
 
   #TODO implement seeding. 
@@ -95,7 +97,6 @@ class SimulatedEnv(gym.Env):
     
     obs = np.array(obs)
     return self.scaler.transform([obs])
-
   def _get_val(self):
     open_price = self.current_state[0]
     return np.sum(self.owned_stocks * open_price) + self.cash_in_hand
@@ -129,14 +130,6 @@ class SimulatedEnv(gym.Env):
         print('Price: ' + str(self.current_state[0]))
         print('Net worth: ' + str(self._get_val))
 
-    # elif mode == 'human':
-    #     if self.viewer is None:
-    #         self.viewer = TradingChart(self.data_provider.data_frame)
-
-    #     self.viewer.render(self.current_step,
-    #                         self.net_worths,
-    #                         self.render_benchmarks,
-    #                         self.trades)
   def close(self):
         if self.viewer is not None:
             self.viewer.close()

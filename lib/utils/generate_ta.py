@@ -7,7 +7,6 @@ def create_ta(df):
     df = add_all_ta_features(df, "Open", "High", "Low", "Close", "Volume", fillna=True) 
     print("Added TA Features...")
     return df
-
 def clean_ta(df):
     #del df['Date']
     df = df.reset_index(drop=True)

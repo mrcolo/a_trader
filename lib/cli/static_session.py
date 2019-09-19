@@ -8,10 +8,12 @@ import pandas as pd
 import tensorflow as tf
 import optuna
 import yfinance as yf
+import gym
 
 from lib.utils.generate_ta import create_ta, clean_ta
 
-from stable_baselines.common.vec_env import DummyVecEnv, VecNormalize
+from stable_baselines.common.vec_env import DummyVecEnv, SubprocVecEnv
+from stable_baselines.common import set_global_seeds
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines import PPO2
 
@@ -22,8 +24,9 @@ from lib.envs.live import LiveEnv
 # UTILS
 from lib.utils.added_tools import maybe_make_dir, dir_setup, generate_actions
 
-# DEFINE GLOB VARIABLES
+# GLOB VARIABLES
 ACTIONS = ["SELL", "HOLD", "BUY"]
+MINI_DATA_PATH = "./data/ta_all_mini_clean.csv"
 
 def yahoo_ohlcv(stock):
   stock = yf.Ticker(stock)
@@ -31,8 +34,33 @@ def yahoo_ohlcv(stock):
   data = create_ta(data)
   data = clean_ta(data)
   return data
+
+def train_val_test_split(path):
+  data = pd.read_csv(path)
+  n_features = data.shape[1]
+  train_data = data.iloc[:-50000, :]
+  validation_data = data.iloc[-50000:-5000, :]
+  test_data = data.iloc[-5000:, :]
+  return train_data, validation_data, test_data, 
+
+def make_env(env, rank, seed=0):
+    """
+    Utility function for multiprocessed env.
+
+    :param env_id: (str) the environment ID
+    :param num_env: (int) the number of environments you wish to have in subprocesses
+    :param seed: (int) the inital seed for RNG
+    :param rank: (int) index of the subprocess
+    """
+    def _init():
+        env.seed(seed + rank)
+        return env
+    set_global_seeds(seed)
+    return _init
+
 class Static_Session:
-  def __init__(self, mode, test_episodes, initial_invest, session_name):
+  def __init__(self, mode, test_episodes, initial_invest, session_name, stock=None, brain=None):
+    # SESSION_VARIABLES
     self.session_name = session_name
     self.mode = mode
     self.test_episodes = test_episodes
@@ -43,15 +71,10 @@ class Static_Session:
     self.actions = generate_actions()
     self.timestamp = dir_setup(mode)
     self.env = None
-   
-    data = pd.read_csv("./data/ta_all_mini_clean.csv")
-
-    n_features = data.shape[1]
-
-    train_data = data.iloc[:-10000, :]
-    validation_data = data.iloc[-10000:-1000, :]
-    test_data = data.iloc[-1000:, :]
-
+    self.brain = brain
+  
+    train_data, validation_data, test_data = train_val_test_split(MINI_DATA_PATH)
+    
     self.train_env = SimulatedEnv(train_data, self.initial_invest, self.mode)
     self.validation_env = SimulatedEnv(validation_data, self.initial_invest, self.mode)
     self.test_env = SimulatedEnv(test_data, self.initial_invest, self.mode)
@@ -60,24 +83,15 @@ class Static_Session:
     self.validation_env = DummyVecEnv([lambda: self.validation_env])
     self.test_env = DummyVecEnv([lambda: self.test_env])
 
-    state_size = n_features
-    action_size = len(ACTIONS) * 10 
-
     #self.f = open("stories/{}-{}-{}.csv".format(self.timestamp, self.mode, "BTC"),"w+")
     #self.f.write("OPERATION,AMOUNT,STOCKS_OWNED,CASH_IN_HAND,PORTFOLIO_VALUE,OPEN_PRICE\n")
     
     self.optuna_study = optuna.create_study(
-            study_name="test_study", 
+            study_name="{}_study".format(self.session_name), 
             storage="sqlite:///data/params.db", 
-            load_if_exists=True)
-    
-    if mode == "optimization":
-      self.run_optimization()
-    if mode == "train":
-      self.run_train()
-    # if mode == "validation":
-    #   self.run_validation()
-      
+            load_if_exists=True,
+            pruner=optuna.pruners.MedianPruner())
+  # OUTPUT FUNCTIONS   
   def print_stats(self, e, info):
     # Print stats
     print("episode: {}/{}, episode end value: {}".format(
@@ -96,15 +110,13 @@ class Static_Session:
         'noptepochs': int(trial.suggest_loguniform('noptepochs', 1, 48)),
         'lam': trial.suggest_uniform('lam', 0.8, 1.)
     }
-  def optimize_params(self, trial, n_prune_evals_per_trial: int = 2, n_tests_per_eval: int = 1):
+  def optimize_params(self, trial, n_prune_evals_per_trial: int = 2, n_tests_per_eval: int = 1, n_steps_per_eval: int = 1000000):
     model_params = self.optimize_agent_params(trial)
     model = PPO2(MlpPolicy, 
                 self.train_env, 
                 verbose=0, 
                 tensorboard_log="./logs/", 
                 **model_params)
-
-    n_steps_per_eval = 1000000
 
     for eval_idx in range(n_prune_evals_per_trial):
         try:
@@ -129,15 +141,18 @@ class Static_Session:
         'cliprange': params['cliprange'],
         'noptepochs': int(params['noptepochs']),
         'lam': params['lam'],
-    }
-  
+    } 
   def run_optimization(self, n_trials: int = 20):
     try:
       self.optuna_study.optimize(self.optimize_params, n_trials=n_trials, n_jobs=1)
     except KeyboardInterrupt:
       pass
     return self.optuna_study.trials_dataframe()
-  def run_test(self, agent, validation = True):
+  
+  def run_test(self, validation = True):
+    assert self.brain is not None
+    model = PPO2.load(self.brain)
+    
     if validation: 
       env = self.validation_env
     else:
@@ -150,7 +165,7 @@ class Static_Session:
       episode_reward = []
       
       for time in range(0, 500):
-        action, _states = agent.predict(state)
+        action, _states = model.predict(state)
         next_state, reward, done, info = env.step(action)
         
         #self.write_to_story(action[0], info[0])
@@ -174,7 +189,7 @@ class Static_Session:
                 tensorboard_log="./logs/", 
                 **model_params)
     try:
-      model.learn(total_timesteps=10000000)
+      model.learn(total_timesteps=1000000)
       result = self.run_test(model, validation=False)
       print("EPISODE_MEAN: {}".format(result))
       model.save(self.session_name)
@@ -182,19 +197,15 @@ class Static_Session:
       print("Saving model...")
       model.save(self.session_name)
   def fine_tune(self, stock, ts=1000000):
+      assert self.brain is not None
       train_data = yahoo_ohlcv(stock)
       fine_tune_env = SimulatedEnv(train_data, self.initial_invest, self.mode)
       model_params = self.get_model_params()
-      model = PPO2(MlpPolicy, 
-                  fine_tune_env, 
-                  verbose=1, 
-                  tensorboard_log="./logs/", 
-                  **model_params)
+      model = PPO2.load(self.brain)
       
       print("Finetuning for {}...".format(stock))
       model.learn(total_timesteps=ts)
       model.save("{}__{}".format(self.session_name, stock))
-
 
 # TODO fix
 # def run_live_session(mode, weights, batch_size, test_episodes, initial_invest):
