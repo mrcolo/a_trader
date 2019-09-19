@@ -94,7 +94,7 @@ class Static_Session:
     #self.f.write("OPERATION,AMOUNT,STOCKS_OWNED,CASH_IN_HAND,PORTFOLIO_VALUE,OPEN_PRICE\n")
     
     self.optuna_study = optuna.create_study(
-            study_name="{}_study".format(self.session_name), 
+            study_name="test_study".format(self.session_name), 
             storage="sqlite:///data/params.db", 
             load_if_exists=True,
             pruner=optuna.pruners.MedianPruner())

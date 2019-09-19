@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
   # Parses arguments
   args = parser.parse_args()
-  s = Static_Session(args.mode, args.episodes, args.initial_invest, args.name, args.brain)
+  s = Static_Session(args.mode, args.episodes, args.initial_invest, args.name, args.brain, False)
 
   if args.mode == "optimize":
     s.run_optimization()
