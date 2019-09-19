@@ -26,9 +26,9 @@ class SimulatedEnv(gym.Env):
     self.cash_in_hand = None    
 
     self.scaler = MinMaxScaler()
-   
+    self.scaler.fit(self.dataset)
+    
     if mode is "train":
-      self.scaler.fit(self.dataset)
       joblib.dump(self.scaler, 'train_scaler.pkl') 
     
     if mode is "test" or mode is "validation":
