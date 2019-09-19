@@ -1,5 +1,6 @@
 import argparse
 from lib.cli.static_session import Static_Session
+from stable_baselines import PPO2
 
 if __name__ == '__main__':
 
@@ -33,5 +34,6 @@ if __name__ == '__main__':
   if args.mode == "validation" and args.brain is not None:
     s.run_test(args.brain)
   if args.mode == "test" and args.brain is not None:
-    s.run_test(args.brain,False)
+    model = PPO2.load(args.brain)
+    s.run_test(model,False)
 

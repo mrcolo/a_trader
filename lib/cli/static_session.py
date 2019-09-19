@@ -59,7 +59,7 @@ def make_env(env, rank, seed=0):
     return _init
 
 class Static_Session:
-  def __init__(self, mode, test_episodes, initial_invest, session_name, stock=None, brain=None, env_multiprocessing=True):
+  def __init__(self, mode, test_episodes, initial_invest, session_name, stock=None, brain=None):
     # SESSION_VARIABLES
     self.session_name = session_name
     self.mode = mode
@@ -78,17 +78,10 @@ class Static_Session:
     self.train_env = SimulatedEnv(train_data, self.initial_invest, self.mode)
     self.validation_env = SimulatedEnv(validation_data, self.initial_invest, self.mode)
     self.test_env = SimulatedEnv(test_data, self.initial_invest, self.mode)
-    
 
-    if not env_multiprocessing:
-      self.train_env = DummyVecEnv([lambda: self.train_env])
-      self.validation_env = DummyVecEnv([lambda: self.validation_env])
-      self.test_env = DummyVecEnv([lambda: self.test_env])
-    else:
-      num_cpu = 4  # Number of processes to use
-      self.train_env = SubprocVecEnv([make_env(self.train_env, i) for i in range(num_cpu)])
-      self.validation_env = SubprocVecEnv([make_env(self.validation_env, i) for i in range(num_cpu)])
-      self.test_env = SubprocVecEnv([make_env(self.test_env, i) for i in range(num_cpu)])
+    self.train_env = DummyVecEnv([lambda: self.train_env])
+    self.validation_env = DummyVecEnv([lambda: self.validation_env])
+    self.test_env = DummyVecEnv([lambda: self.test_env])
     
     #self.f = open("stories/{}-{}-{}.csv".format(self.timestamp, self.mode, "BTC"),"w+")
     #self.f.write("OPERATION,AMOUNT,STOCKS_OWNED,CASH_IN_HAND,PORTFOLIO_VALUE,OPEN_PRICE\n")
@@ -132,11 +125,13 @@ class Static_Session:
             raise
  
         last_reward = self.run_test(model)
+
         trial.report(-1 * last_reward, eval_idx)
+        
 
         if trial.should_prune(eval_idx):
             raise optuna.structs.TrialPruned()
-
+    model.save("current.pkl")
     return -1 * last_reward
   def get_model_params(self):
     params = self.optuna_study.best_trial.params
@@ -156,9 +151,7 @@ class Static_Session:
       pass
     return self.optuna_study.trials_dataframe()
   
-  def run_test(self, validation = True):
-    assert self.brain is not None
-    model = PPO2.load(self.brain)
+  def run_test(self,model, validation = True):
     
     if validation: 
       env = self.validation_env
@@ -174,7 +167,7 @@ class Static_Session:
       for time in range(0, 500):
         action, _states = model.predict(state)
         next_state, reward, done, info = env.step(action)
-        
+       
         #self.write_to_story(action[0], info[0])
         episode_reward.append(reward)
         state = next_state
@@ -188,7 +181,6 @@ class Static_Session:
     self.losses = 0
     return np.mean(episode_reward) 
   def run_train(self):
-    # Save the agent
     model_params = self.get_model_params()
     model = PPO2(MlpPolicy, 
                 self.train_env, 
