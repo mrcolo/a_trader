@@ -116,6 +116,7 @@ class Static_Session:
                 self.train_env, 
                 verbose=0, 
                 tensorboard_log="./logs/", 
+                nminibatches=1,
                 **model_params)
 
     for eval_idx in range(n_prune_evals_per_trial):
@@ -128,7 +129,6 @@ class Static_Session:
 
         trial.report(-1 * last_reward, eval_idx)
         
-
         if trial.should_prune(eval_idx):
             raise optuna.structs.TrialPruned()
     model.save("current.pkl")
@@ -185,6 +185,7 @@ class Static_Session:
     model = PPO2(MlpPolicy, 
                 self.train_env, 
                 verbose=1, 
+                nminibatches=1,
                 tensorboard_log="./logs/", 
                 **model_params)
     try:
