@@ -59,7 +59,7 @@ def make_env(env, rank, seed=0):
     return _init
 
 class Static_Session:
-  def __init__(self, mode, test_episodes, initial_invest, session_name, stock=None, brain=None):
+  def __init__(self, mode, test_episodes, initial_invest, session_name, stock=None, brain=None, env_multiprocessing=True):
     # SESSION_VARIABLES
     self.session_name = session_name
     self.mode = mode
@@ -79,10 +79,17 @@ class Static_Session:
     self.validation_env = SimulatedEnv(validation_data, self.initial_invest, self.mode)
     self.test_env = SimulatedEnv(test_data, self.initial_invest, self.mode)
     
-    self.train_env = DummyVecEnv([lambda: self.train_env])
-    self.validation_env = DummyVecEnv([lambda: self.validation_env])
-    self.test_env = DummyVecEnv([lambda: self.test_env])
 
+    if not env_multiprocessing:
+      self.train_env = DummyVecEnv([lambda: self.train_env])
+      self.validation_env = DummyVecEnv([lambda: self.validation_env])
+      self.test_env = DummyVecEnv([lambda: self.test_env])
+    else:
+      num_cpu = 4  # Number of processes to use
+      self.train_env = SubprocVecEnv([make_env(self.train_env, i) for i in range(num_cpu)])
+      self.validation_env = SubprocVecEnv([make_env(self.validation_env, i) for i in range(num_cpu)])
+      self.test_env = SubprocVecEnv([make_env(self.test_env, i) for i in range(num_cpu)])
+    
     #self.f = open("stories/{}-{}-{}.csv".format(self.timestamp, self.mode, "BTC"),"w+")
     #self.f.write("OPERATION,AMOUNT,STOCKS_OWNED,CASH_IN_HAND,PORTFOLIO_VALUE,OPEN_PRICE\n")
     
