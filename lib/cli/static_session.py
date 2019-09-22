@@ -95,8 +95,8 @@ class Static_Session:
             load_if_exists=True,
             pruner=optuna.pruners.MedianPruner())
     
-    self.logger.debug(f'Initialized Static Session: {self.session_name}')
-    self.logger.debug(f'Mode: {self.mode}')
+    self.logger.debug('Initialized Static Session: {}'.format(self.session_name))
+    self.logger.debug('Mode: {}'.format(self.mode))
 
   # OUTPUT FUNCTIONS   
   def print_stats(self, e, info):
@@ -142,7 +142,7 @@ class Static_Session:
     return -1 * last_reward
   def get_model_params(self):
     params = self.optuna_study.best_trial.params
-    self.logger.debug(f'Loaded best parameters as: {params}')
+    self.logger.debug('Loaded best parameters as: {}'.format(params))
 
     return {
         'n_steps': int(params['n_steps']),
@@ -158,8 +158,8 @@ class Static_Session:
       self.optuna_study.optimize(self.optimize_params, n_trials=n_trials, n_jobs=1)
     except KeyboardInterrupt:
       pass
-    self.logger.info(f'Finished trials: {len(self.optuna_study.trials)}')
-    self.logger.info(f'Best trial: {self.optuna_study.best_trial.value}')
+    self.logger.info('Finished trials: {}'.format(len(self.optuna_study.trials)))
+    self.logger.info('Best trial: {}'.format(self.optuna_study.best_trial.value))
     return self.optuna_study.trials_dataframe()
   
   def run_test(self,model, validation = True):
