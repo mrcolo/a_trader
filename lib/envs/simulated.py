@@ -11,11 +11,11 @@ class SimulatedEnv(gym.Env):
   
   metadata = {'render.modes': ['human', 'system', 'none']}
 
-  def __init__(self, train_data, init_invest=1000, mode="test"):
+  def __init__(self, data, init_invest=1000, mode="test"):
 
     super(SimulatedEnv, self).__init__()
     
-    self.dataset = train_data
+    self.dataset = data
     self.mode = mode
     self.n_steps = 500
     self.finish_step = 0
@@ -27,17 +27,17 @@ class SimulatedEnv(gym.Env):
 
     self.scaler = MinMaxScaler()
     self.scaler.fit(self.dataset)
+    print("bella")
     
-    if mode is "train":
-      joblib.dump(self.scaler, 'train_scaler.pkl') 
+    #TODO joblib.dump(self.scaler, 'train_scaler.pkl') 
     
-    if mode is "test" or mode is "validation":
+    if mode is "test" or mode is "validation" or mode is "finetune":
       self.scaler = joblib.load('train_scaler.pkl') 
 
     self.actions = generate_actions()
     self.action_space = gym.spaces.Discrete(30)  
 
-    self.n_features = train_data.shape[1]
+    self.n_features = data.shape[1]
     self.obs_shape = (1, self.n_features)
     self.observation_space = gym.spaces.Box(low=0, 
                                             high=1,

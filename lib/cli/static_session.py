@@ -212,9 +212,11 @@ class Static_Session:
       train_data = yahoo_ohlcv(stock)
       fine_tune_env = SimulatedEnv(train_data, self.initial_invest, self.mode)
       fine_tune_env = DummyVecEnv([lambda: fine_tune_env])
-      model = PPO2.load(self.brain)
+
+      model = PPO2.load("./first_finetune_test.pkl")
       model.set_env(fine_tune_env)
-      print("Finetuning for {}...".format(stock))
+      
+      self.logger.info("Finetuning for {}...".format(stock))
       model.learn(total_timesteps=ts)
       model.save("{}__{}".format(self.session_name, stock))
 
