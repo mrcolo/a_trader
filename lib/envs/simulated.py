@@ -76,7 +76,7 @@ class SimulatedEnv(gym.Env):
     # Check on how much it changed
     cur_val = self._get_val()
 
-    reward = clamp(-1, cur_val - prev_val, 1)
+    reward = clamp(-5, cur_val - prev_val, 5)
     #reward = cur_val - prev_val
 
     done = (self.cur_step >= self.finish_step - 1) 

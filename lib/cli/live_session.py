@@ -54,8 +54,8 @@ class Static_Session:
     state_size = n_features
     action_size = len(ACTIONS) * 10 
 
-    self.f = open("stories/{}-{}-{}.csv".format(self.timestamp, self.mode, "BTC"),"w+")
-    self.f.write("OPERATION,AMOUNT,STOCKS_OWNED,CASH_IN_HAND,PORTFOLIO_VALUE,OPEN_PRICE\n")
+    #self.f = open("stories/{}-{}-{}.csv".format(self.timestamp, self.mode, "BTC"),"w+")
+    #self.f.write("OPERATION,AMOUNT,STOCKS_OWNED,CASH_IN_HAND,PORTFOLIO_VALUE,OPEN_PRICE\n")
     
     self.optuna_study = optuna.create_study(
             study_name="test_study", 

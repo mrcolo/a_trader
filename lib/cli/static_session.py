@@ -10,6 +10,7 @@ import optuna
 import yfinance as yf
 import gym
 
+from lib.utils.logger import init_logger
 from lib.utils.generate_ta import create_ta, clean_ta
 
 from stable_baselines.common.vec_env import DummyVecEnv, SubprocVecEnv
@@ -72,7 +73,9 @@ class Static_Session:
     self.timestamp = dir_setup(mode)
     self.env = None
     self.brain = brain
-  
+    self.n_steps_per_eval = 1000000
+    self.logger = init_logger(__name__, show_debug=True)
+
     train_data, validation_data, test_data = train_val_test_split(MINI_DATA_PATH)
     
     self.train_env = SimulatedEnv(train_data, self.initial_invest, self.mode)
@@ -91,6 +94,10 @@ class Static_Session:
             storage="sqlite:///data/params.db", 
             load_if_exists=True,
             pruner=optuna.pruners.MedianPruner())
+    
+    self.logger.debug(f'Initialized Static Session: {self.session_name}')
+    self.logger.debug(f'Mode: {self.mode}')
+
   # OUTPUT FUNCTIONS   
   def print_stats(self, e, info):
     # Print stats
@@ -110,7 +117,7 @@ class Static_Session:
         'noptepochs': int(trial.suggest_loguniform('noptepochs', 1, 48)),
         'lam': trial.suggest_uniform('lam', 0.8, 1.)
     }
-  def optimize_params(self, trial, n_prune_evals_per_trial: int = 2, n_tests_per_eval: int = 1, n_steps_per_eval: int = 1000000):
+  def optimize_params(self, trial, n_prune_evals_per_trial: int = 2, n_tests_per_eval: int = 1):
     model_params = self.optimize_agent_params(trial)
     model = PPO2(MlpPolicy, 
                 self.train_env, 
@@ -118,10 +125,10 @@ class Static_Session:
                 tensorboard_log="./logs/", 
                 nminibatches=1,
                 **model_params)
-
+    # TODO fix this
     for eval_idx in range(n_prune_evals_per_trial):
         try:
-            model.learn(n_steps_per_eval)
+            model.learn(self.n_steps_per_eval)
         except AssertionError:
             raise
  
@@ -135,6 +142,8 @@ class Static_Session:
     return -1 * last_reward
   def get_model_params(self):
     params = self.optuna_study.best_trial.params
+    self.logger.debug(f'Loaded best parameters as: {params}')
+
     return {
         'n_steps': int(params['n_steps']),
         'gamma': params['gamma'],
@@ -144,11 +153,13 @@ class Static_Session:
         'noptepochs': int(params['noptepochs']),
         'lam': params['lam'],
     } 
-  def run_optimization(self, n_trials: int = 20):
+  def run_optimization(self, n_trials: int = 10):
     try:
       self.optuna_study.optimize(self.optimize_params, n_trials=n_trials, n_jobs=1)
     except KeyboardInterrupt:
       pass
+    self.logger.info(f'Finished trials: {len(self.optuna_study.trials)}')
+    self.logger.info(f'Best trial: {self.optuna_study.best_trial.value}')
     return self.optuna_study.trials_dataframe()
   
   def run_test(self,model, validation = True):
@@ -189,20 +200,20 @@ class Static_Session:
                 tensorboard_log="./logs/", 
                 **model_params)
     try:
-      model.learn(total_timesteps=1000000)
+      model.learn(total_timesteps=self.n_steps_per_eval)
       result = self.run_test(model, validation=False)
       print("EPISODE_MEAN: {}".format(result))
       model.save(self.session_name)
     except KeyboardInterrupt:
       print("Saving model...")
       model.save(self.session_name)
-  def fine_tune(self, stock, ts=1000000):
+  def fine_tune(self, stock, ts=100000):
       assert self.brain is not None
       train_data = yahoo_ohlcv(stock)
       fine_tune_env = SimulatedEnv(train_data, self.initial_invest, self.mode)
-      model_params = self.get_model_params()
-      model = PPO2.load(self.brain)
-      
+      fine_tune_env = DummyVecEnv([lambda: fine_tune_env])
+      model = PPO2.load("./current.pkl")
+      model.set_env(fine_tune_env)
       print("Finetuning for {}...".format(stock))
       model.learn(total_timesteps=ts)
       model.save("{}__{}".format(self.session_name, stock))
