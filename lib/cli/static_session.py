@@ -33,6 +33,7 @@ def yahoo_ohlcv(stock):
   stock = yf.Ticker(stock)
   data = stock.history(period="max")
   data = create_ta(data)
+  data = data.fillna(0)
   data = clean_ta(data)
   return data
 
@@ -89,11 +90,11 @@ class Static_Session:
     #self.f = open("stories/{}-{}-{}.csv".format(self.timestamp, self.mode, "BTC"),"w+")
     #self.f.write("OPERATION,AMOUNT,STOCKS_OWNED,CASH_IN_HAND,PORTFOLIO_VALUE,OPEN_PRICE\n")
     
-    self.optuna_study = optuna.create_study(
-            study_name="test_study".format(self.session_name), 
-            storage="sqlite:///data/params.db", 
-            load_if_exists=True,
-            pruner=optuna.pruners.MedianPruner())
+   # self.optuna_study = optuna.create_study(
+   #         study_name="test_study".format(self.session_name), 
+   #         storage="sqlite:///data/params.db", 
+   #         load_if_exists=True,
+   #         pruner=optuna.pruners.MedianPruner())
     
     self.logger.debug('Initialized Static Session: {}'.format(self.session_name))
     self.logger.debug('Mode: {}'.format(self.mode))
@@ -215,7 +216,7 @@ class Static_Session:
 
       model = PPO2.load("./first_finetune_test.pkl")
       model.set_env(fine_tune_env)
-      
+      print("ma funziona")
       self.logger.info("Finetuning for {}...".format(stock))
       model.learn(total_timesteps=ts)
       model.save("{}__{}".format(self.session_name, stock))

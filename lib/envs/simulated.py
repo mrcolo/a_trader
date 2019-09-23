@@ -25,14 +25,15 @@ class SimulatedEnv(gym.Env):
     self.owned_stocks = None
     self.cash_in_hand = None    
 
-    self.scaler = MinMaxScaler()
-    self.scaler.fit(self.dataset)
-    print("bella")
+   # self.scaler = MinMaxScaler()
+   # self.scaler.fit(self.dataset)
+
     
     #TODO joblib.dump(self.scaler, 'train_scaler.pkl') 
     
-    if mode is "test" or mode is "validation" or mode is "finetune":
-      self.scaler = joblib.load('train_scaler.pkl') 
+    #if mode is "test" or mode is "validation" or mode is "finetune":
+    self.scaler = joblib.load('train_scaler.pkl') 
+
 
     self.actions = generate_actions()
     self.action_space = gym.spaces.Discrete(30)  
