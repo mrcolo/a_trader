@@ -92,7 +92,7 @@ class Static_Session:
     self.timestamp = dir_setup(mode)
     self.env = None
     self.brain = brain
-    self.n_steps_per_eval = 5000000
+    self.n_steps_per_eval = 10000000
     self.logger = init_logger(__name__, show_debug=True)
     self.stock = stock
     coloredlogs.install(level='TEST')
@@ -134,8 +134,9 @@ class Static_Session:
     }
   def optimize_params(self, trial, n_prune_evals_per_trial: int = 2, n_tests_per_eval: int = 1):
     model_params = self.optimize_agent_params(trial)
+    train_env = DummyVecEnv([lambda: SimulatedEnv(self.train_data, self.initial_invest, self.mode)])
     model = PPO2(MlpPolicy, 
-                self.train_env, 
+                train_env, 
                 verbose=0, 
                 tensorboard_log="./logs/", 
                 nminibatches=1,

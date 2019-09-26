@@ -8,12 +8,12 @@ import datetime
 
 from lib.utils.added_tools import generate_actions, clamp
 
-def get_scaler(mode):
+def get_scaler(mode, data):
   scaler = None
   if mode == "train" or mode == "optimize":
-    self.scaler = MinMaxScaler()
-    self.scaler.fit(self.dataset)
-    joblib.dump(self.scaler, 'saved_scaler.pkl')
+    scaler = MinMaxScaler()
+    scaler.fit(data)
+    joblib.dump(scaler, 'saved_scaler.pkl')
     return scaler
   return joblib.load('saved_scaler.pkl') 
 
@@ -34,7 +34,7 @@ class SimulatedEnv(gym.Env):
     self.current_state = []
     self.owned_stocks = None
     self.cash_in_hand = None    
-    self.scaler = get_scaler(mode)
+    self.scaler = get_scaler(mode, self.dataset)
 
     self.actions = generate_actions()
     self.action_space = gym.spaces.Discrete(30)  
