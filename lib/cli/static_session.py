@@ -33,7 +33,7 @@ TOTAL_DATA_PATH = "./data/ta_all_clean.csv"
 
 def manual_agent_params():
     return {
-        'n_steps': 512,
+        'n_steps': 1024,
         'gamma': 0.9391973108460121,
         'learning_rate': 0.00010179263199758284,
         'ent_coef': 0.0001123894292050861,
@@ -96,7 +96,9 @@ class Static_Session:
     self.logger = init_logger(__name__, show_debug=True)
     self.stock = stock
     coloredlogs.install(level='TEST')
-        
+    
+    self.train_data, self.validation_data, self.test_data = train_val_test_split(TOTAL_DATA_PATH)
+    
     self.optuna_study = optuna.create_study(
            study_name="{}_study".format(self.session_name), 
            storage="sqlite:///data/params.db", 
@@ -176,8 +178,6 @@ class Static_Session:
   # TRAINING AND TESTING
   def run_test(self,model, validation = True, finetune=False, out_file=False, verbose=True):  
     
-    _ , _ , self.test_data = train_val_test_split(TOTAL_DATA_PATH)
-
     f = None
     if out_file:
       f = open("stories/{}-{}-{}.csv".format(self.timestamp, self.mode, "BTC"),"w+")
