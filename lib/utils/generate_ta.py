@@ -1,18 +1,17 @@
 from ta import *
 import pandas as pd
 def create_ta(df):
-    df = df.iloc[:,:-2]
     print("Loaded CSV...")
-    # Add ta features filling NaN values
-    df = add_all_ta_features(df, "Open", "High", "Low", "Close", "Volume", fillna=True) 
+    df = add_all_ta_features(df, "open", "high", "low", "close", "volume", fillna=True) 
     print("Added TA Features...")
     return df
 def clean_ta(df):
-    #del df['Date']
     df = df.reset_index(drop=True)
-    del df['Close']
-    del df['High']
-    del df['Low']
+    del df['close']
+    del df['ticker']
+    del df['adjclose']
+    del df['high']
+    del df['low']
     del df['volatility_bbh']
     del df['volatility_atr']
     del df['volume_nvi']

@@ -4,8 +4,19 @@ import random
 import time
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.externals import joblib 
+import datetime
 
 from lib.utils.added_tools import generate_actions, clamp
+
+def get_scaler(mode):
+  scaler = None
+  if mode == "train" or mode == "optimize":
+    self.scaler = MinMaxScaler()
+    self.scaler.fit(self.dataset)
+    joblib.dump(self.scaler, 'saved_scaler.pkl')
+    return scaler
+  return joblib.load('saved_scaler.pkl') 
+
 
 class SimulatedEnv(gym.Env):
   
@@ -14,26 +25,16 @@ class SimulatedEnv(gym.Env):
   def __init__(self, data, init_invest=1000, mode="test"):
 
     super(SimulatedEnv, self).__init__()
-    
     self.dataset = data
     self.mode = mode
-    self.n_steps = 500
+    self.n_steps = 180
     self.finish_step = 0
     self.init_invest = init_invest
     self.cur_step = None
     self.current_state = []
     self.owned_stocks = None
     self.cash_in_hand = None    
-
-   # self.scaler = MinMaxScaler()
-   # self.scaler.fit(self.dataset)
-
-    
-    #TODO joblib.dump(self.scaler, 'train_scaler.pkl') 
-    
-    #if mode is "test" or mode is "validation" or mode is "finetune":
-    self.scaler = joblib.load('train_scaler.pkl') 
-
+    self.scaler = get_scaler(mode)
 
     self.actions = generate_actions()
     self.action_space = gym.spaces.Discrete(30)  
@@ -105,7 +106,6 @@ class SimulatedEnv(gym.Env):
     combo = self.actions[action]
     move = combo[0]
     amount = combo[1]
-    
     open_price = self.current_state[0]
     expense = amount * open_price
     

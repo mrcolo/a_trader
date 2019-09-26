@@ -7,8 +7,9 @@ import sys
 import pandas as pd
 import tensorflow as tf
 import optuna
-import yfinance as yf
 import gym
+from yahoo_fin import stock_info as si
+import coloredlogs
 
 from lib.utils.logger import init_logger
 from lib.utils.generate_ta import create_ta, clean_ta
@@ -28,10 +29,21 @@ from lib.utils.added_tools import maybe_make_dir, dir_setup, generate_actions
 # GLOB VARIABLES
 ACTIONS = ["SELL", "HOLD", "BUY"]
 MINI_DATA_PATH = "./data/ta_all_mini_clean.csv"
+TOTAL_DATA_PATH = "./data/ta_all_clean.csv"
 
-def yahoo_ohlcv(stock):
-  stock = yf.Ticker(stock)
-  data = stock.history(period="max")
+def manual_agent_params():
+    return {
+        'n_steps': 512,
+        'gamma': 0.9391973108460121,
+        'learning_rate': 0.00010179263199758284,
+        'ent_coef': 0.0001123894292050861,
+        'cliprange': 0.2668120684510983,
+        'noptepochs': 5,
+        'lam': 0.8789545362092943
+    }
+
+def historical_yahoo(stock):
+  data = si.get_data(stock, end_date = pd.Timestamp.today() + pd.DateOffset(10))
   data = create_ta(data)
   data = data.fillna(0)
   data = clean_ta(data)
@@ -43,7 +55,13 @@ def train_val_test_split(path):
   train_data = data.iloc[:-50000, :]
   validation_data = data.iloc[-50000:-5000, :]
   test_data = data.iloc[-5000:, :]
-  return train_data, validation_data, test_data, 
+  return train_data, validation_data, test_data
+
+def train_val_test_split_finetune(data):
+  n_features = data.shape[1]
+  train_data = data.iloc[:-2000, :]
+  test_data = data.iloc[-2000:, :]
+  return train_data, test_data
 
 def make_env(env, rank, seed=0):
     """
@@ -74,27 +92,16 @@ class Static_Session:
     self.timestamp = dir_setup(mode)
     self.env = None
     self.brain = brain
-    self.n_steps_per_eval = 1000000
+    self.n_steps_per_eval = 5000000
     self.logger = init_logger(__name__, show_debug=True)
-
-    train_data, validation_data, test_data = train_val_test_split(MINI_DATA_PATH)
-    
-    self.train_env = SimulatedEnv(train_data, self.initial_invest, self.mode)
-    self.validation_env = SimulatedEnv(validation_data, self.initial_invest, self.mode)
-    self.test_env = SimulatedEnv(test_data, self.initial_invest, self.mode)
-
-    self.train_env = DummyVecEnv([lambda: self.train_env])
-    self.validation_env = DummyVecEnv([lambda: self.validation_env])
-    self.test_env = DummyVecEnv([lambda: self.test_env])
-    
-    #self.f = open("stories/{}-{}-{}.csv".format(self.timestamp, self.mode, "BTC"),"w+")
-    #self.f.write("OPERATION,AMOUNT,STOCKS_OWNED,CASH_IN_HAND,PORTFOLIO_VALUE,OPEN_PRICE\n")
-    
-   # self.optuna_study = optuna.create_study(
-   #         study_name="test_study".format(self.session_name), 
-   #         storage="sqlite:///data/params.db", 
-   #         load_if_exists=True,
-   #         pruner=optuna.pruners.MedianPruner())
+    self.stock = stock
+    coloredlogs.install(level='TEST')
+        
+    self.optuna_study = optuna.create_study(
+           study_name="{}_study".format(self.session_name), 
+           storage="sqlite:///data/params.db", 
+           load_if_exists=True,
+           pruner=optuna.pruners.MedianPruner())
     
     self.logger.debug('Initialized Static Session: {}'.format(self.session_name))
     self.logger.debug('Mode: {}'.format(self.mode))
@@ -102,15 +109,20 @@ class Static_Session:
   # OUTPUT FUNCTIONS   
   def print_stats(self, e, info):
     # Print stats
-    print("episode: {}/{}, episode end value: {}".format(
+    self.logger.info("episode: {}/{}, episode end value: {}".format(
       e + 1, self.test_episodes, info[0]['cur_val']))
-    print("TOTAL LOSSES: {}".format(self.losses))
-  def write_to_story(self, action, info):
-    self.f.write("{},{},{},{},{},{}\n".format(ACTIONS[self.actions[action][0]],self.actions[action][1], info['owned_stocks'], info['cash_in_hand'], info['cur_val'], info['price']))
-  
+    self.logger.info("loss percent --> {}%".format(int(self.losses / (e + 1) * 100)))
+  def write_to_story(self,f, action, info):
+    f.write("{},{},{},{},{},{}\n".format(ACTIONS[self.actions[action][0]],
+                                              self.actions[action][1], 
+                                              info['owned_stocks'], 
+                                              info['cash_in_hand'], 
+                                              info['cur_val'], 
+                                              info['price']))
+  # OPTIMIZE FUNCTIONS
   def optimize_agent_params(self, trial):
     return {
-        'n_steps': int(trial.suggest_loguniform('n_steps', 16, 2048)),
+        'n_steps': int(trial.suggest_loguniform('n_steps', 512, 2048)),
         'gamma': trial.suggest_loguniform('gamma', 0.9, 0.9999),
         'learning_rate': trial.suggest_loguniform('learning_rate', 1e-5, 1.),
         'ent_coef': trial.suggest_loguniform('ent_coef', 1e-8, 1e-1),
@@ -139,7 +151,6 @@ class Static_Session:
         
         if trial.should_prune(eval_idx):
             raise optuna.structs.TrialPruned()
-    model.save("current.pkl")
     return -1 * last_reward
   def get_model_params(self):
     params = self.optuna_study.best_trial.params
@@ -162,40 +173,65 @@ class Static_Session:
     self.logger.info('Finished trials: {}'.format(len(self.optuna_study.trials)))
     self.logger.info('Best trial: {}'.format(self.optuna_study.best_trial.value))
     return self.optuna_study.trials_dataframe()
-  
-  def run_test(self,model, validation = True):
+  # TRAINING AND TESTING
+  def run_test(self,model, validation = True, finetune=False, out_file=False, verbose=True):  
     
-    if validation: 
-      env = self.validation_env
+    _ , _ , self.test_data = train_val_test_split(TOTAL_DATA_PATH)
+
+    f = None
+    if out_file:
+      f = open("stories/{}-{}-{}.csv".format(self.timestamp, self.mode, "BTC"),"w+")
+      f.write("OPERATION,AMOUNT,STOCKS_OWNED,CASH_IN_HAND,PORTFOLIO_VALUE,OPEN_PRICE\n")
+    
+    env = None
+
+    if not finetune:
+      if validation: 
+        env = DummyVecEnv([lambda: SimulatedEnv(self.validation_data, self.initial_invest, self.mode)])
+      else:
+        env = DummyVecEnv([lambda: SimulatedEnv(self.test_data, self.initial_invest, self.mode)])
     else:
-      env = self.test_env
+        data = historical_yahoo("NKE")
+        self.logger.debug('Downloaded Data from yahoo finance.')
+
+        _ , test_data = train_val_test_split_finetune(data)
+        env = DummyVecEnv([lambda: SimulatedEnv(test_data, self.initial_invest, self.mode)])
+        self.logger.debug('Downloaded Data from yahoo finance.')
+
+    total_reward = []
 
     for e in range(self.test_episodes):
       # Reset the environment at every episode. 
       state = env.reset()      
       # Initialize variable to get reward stats. 
-      episode_reward = []
       
-      for time in range(0, 500):
+      for time in range(0, 180):
         action, _states = model.predict(state)
         next_state, reward, done, info = env.step(action)
-       
-        #self.write_to_story(action[0], info[0])
-        episode_reward.append(reward)
+        
+        if out_file:
+          self.write_to_story(f, action[0], info[0])
+
+        total_reward.append(reward)
         state = next_state
         
         if done:
           if info[0]['cur_val'] < self.initial_invest:
             self.losses = self.losses + 1
-          self.print_stats(e, info)
-          #self.f.write("{},{},{},{},{},{}\n".format(-1,-1,-1,-1,-1,-1))
+          if verbose:
+            self.print_stats(e, info)
+          if out_file:
+            f.write("{},{},{},{},{},{}\n".format(-1,-1,-1,-1,-1,-1))
           break
     self.losses = 0
-    return np.mean(episode_reward) 
+    return np.mean(total_reward) 
   def run_train(self):
-    model_params = self.get_model_params()
+    train_env = DummyVecEnv([lambda: SimulatedEnv(self.train_data, self.initial_invest, self.mode)])
+
+    #model_params = self.get_model_params()
+    model_params = manual_agent_params()
     model = PPO2(MlpPolicy, 
-                self.train_env, 
+                train_env, 
                 verbose=1, 
                 nminibatches=1,
                 tensorboard_log="./logs/", 
@@ -203,60 +239,31 @@ class Static_Session:
     try:
       model.learn(total_timesteps=self.n_steps_per_eval)
       result = self.run_test(model, validation=False)
-      print("EPISODE_MEAN: {}".format(result))
-      model.save(self.session_name)
+      
+      self.logger.info("test_mean --> {}".format(result))
+      
+      model.save("{}.pkl".format(self.session_name))
+
     except KeyboardInterrupt:
       print("Saving model...")
-      model.save(self.session_name)
-  def fine_tune(self, stock, ts=100000):
+      model.save("{}.pkl".format(self.session_name))
+  def fine_tune(self, stock, model_path, ts=1000000):
       assert self.brain is not None
-      train_data = yahoo_ohlcv(stock)
+      
+      data = historical_yahoo(stock)
+      train_data, _ = train_val_test_split_finetune(data)
+      
       fine_tune_env = SimulatedEnv(train_data, self.initial_invest, self.mode)
       fine_tune_env = DummyVecEnv([lambda: fine_tune_env])
 
-      model = PPO2.load("./first_finetune_test.pkl")
+      model = PPO2.load(model_path)
       model.set_env(fine_tune_env)
-      print("ma funziona")
-      self.logger.info("Finetuning for {}...".format(stock))
-      model.learn(total_timesteps=ts)
-      model.save("{}__{}".format(self.session_name, stock))
-
-# TODO fix
-# def run_live_session(mode, weights, batch_size, test_episodes, initial_invest):
-
-#   # Initialize session variables
-#   portfolio_value, test_ep_rewards, losses = [], [], 0
-  
-#   #Setup initial directories and return a current timestamp
-#   timestamp = dir_setup(mode)
-
-#   # Download data and create an environment and corrispective statesize actionsize
-#   env, state_size, action_size = live_env_setup(initial_invest, 63, 3)
-
-#   # TODO implement a choice for DDQN / DQN
-#   # Setup the DDQN agent
-#   agent = DDQNAgent(state_size, action_size, mode)
-
-#   # Create story for session
-#   f = open("stories/{}-{}-{}.csv".format(timestamp, mode, "BTC"),"w+")
-#   f.write("OPERATION,AMOUNT,CRYPTO_OWNED,CASH_IN_HAND,PORTFOLIO_VALUE,OPEN_PRICE\n")
-
-#   timestamp, agent = test_setup(mode, weights, agent, timestamp)
-
-#   state = env._reset()
-
-#   for time in range(env.n_step):
-#     # Act a consequence of next state
-#     action = agent.act(state)
-
-#     # Make a step and print the consequence. 
-#     next_state, reward, info = env._step(action)
-  
-#     f.write("{},{},{},{},{},{}\n".format(\
-#       ACTIONS[action], \
-#       info['crypto_owned'], \
-#       info['cash_in_hand'], \
-#       info['cur_val'], \
-#       info['price']))
     
-#     state = next_state
+      self.logger.info("Finetuning for {}...".format(stock))
+      
+      model.learn(total_timesteps=ts)
+      model.save("{}__{}.pkl".format(self.session_name, stock))
+      self.logger.info("Saved as {}__{}.pkl".format(self.session_name, stock))
+
+      result = self.run_test(model, finetune=True)
+

@@ -2,7 +2,7 @@ import pickle
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
-from lib.utils.added_tools import maybe_make_dir
+from added_tools import maybe_make_dir
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -33,26 +33,29 @@ for i in range(len(portfolio_value)):
         episodes_stocks.append(stock_value[prev:i])
         prev = i
         count = count + 1
+with plt.style.context('Solarize_Light2'):
+    for i in range(0, len(episodes)):
+        fig, ax = plt.subplots()
+        fig.set_figheight(9)
+        fig.set_figwidth(16)
+        ep_num = i
+        plt.subplot(2, 1, 1)
+        plt.grid()
+        plt.plot(episodes[ep_num][1:])
 
-for i in range(0, len(episodes)):
-    fig, ax = plt.subplots()
-    ep_num = i
-    plt.subplot(1, 2, 1)
-    plt.grid()
-    plt.plot(episodes[ep_num][1:])
+        for i in range(len(episodes[ep_num])):
+            if episodes_actions[ep_num][i] == "BUY":
+                plt.scatter(i, episodes[ep_num][i], color="yellow" ,marker=".", label='BUY')
+            if episodes_actions[ep_num][i] == "SELL":
+                plt.scatter(i, episodes[ep_num][i], color="green",marker=".",label='SELL')
+            if episodes_actions[ep_num][i] == "HOLD":
+                plt.scatter(i, episodes[ep_num][i], color="grey",marker=".",label='HOLD')
 
-    for i in range(len(episodes[ep_num])):
-        if episodes_actions[ep_num][i] == "BUY":
-            plt.scatter(i, episodes[ep_num][i], color='yellow', label='BUY')
-        if episodes_actions[ep_num][i] == "SELL":
-            plt.scatter(i, episodes[ep_num][i], color='green',label='SELL')
-        if episodes_actions[ep_num][i] == "HOLD":
-            plt.scatter(i, episodes[ep_num][i], color='blue',label='HOLD')
-
-    plt.subplot(1, 2, 2)
-    plt.grid()
-    plt.plot(episodes_stocks[ep_num][1:])
-    plt.savefig("./{}/{}/{}.png".format("images",args.file[:-4],ep_num))
+        plt.subplot(2, 1, 2)
+        plt.grid()
+        plt.plot(episodes_stocks[ep_num][1:])
+        
+        plt.savefig("./{}/{}/{}.png".format("images",args.file[:-4],ep_num) , dpi=300)
 
 
 
