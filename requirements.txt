@@ -49,7 +49,7 @@ ta == 0.4.5
 # lib/cli/live_session.py: 8
 # lib/cli/static_session.py: 8
 # lib/utils/added_tools.py: 5,7
-tensorflow == 1.15.2
+tensorflow == 2.7.2
 
 # lib/cli/static_session.py: 10
 yfinance == 0.1.44
