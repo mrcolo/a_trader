@@ -30,7 +30,7 @@ optuna == 0.12.0
 pandas == 0.24.1
 
 # lib/envs/live.py: 11
-requests == 2.20.0
+requests == 2.31.0
 
 # lib/envs/simulated.py: 5
 # lib/utils/added_tools.py: 4
